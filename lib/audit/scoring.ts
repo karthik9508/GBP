@@ -231,3 +231,33 @@ export function generateMockAuditResult(businessName: string) {
         ],
     };
 }
+
+/**
+ * Generate smart recommendations from actual audit issues
+ */
+export function generateRecommendations(issues: AuditIssue[]): string[] {
+    const recommendations: string[] = [];
+
+    // Collect unique recommendations from issues
+    for (const issue of issues) {
+        if (issue.recommendation && !recommendations.includes(issue.recommendation)) {
+            recommendations.push(issue.recommendation);
+        }
+    }
+
+    // Always include general best-practice tips
+    const generalTips = [
+        "Post at least 3-4 times per month to stay active on Google",
+        "Respond to all reviews within 24 hours — use GBP Pro's AI for instant replies!",
+        "Add fresh photos every month to keep your profile engaging",
+    ];
+
+    for (const tip of generalTips) {
+        if (recommendations.length < 8 && !recommendations.includes(tip)) {
+            recommendations.push(tip);
+        }
+    }
+
+    return recommendations;
+}
+

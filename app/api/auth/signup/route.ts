@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
     try {
@@ -18,10 +19,32 @@ export async function POST(request: Request) {
             );
         }
 
-        // TODO: Implement actual Supabase auth signup
+        const supabase = await createClient();
+
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    name: name || "",
+                },
+            },
+        });
+
+        if (error) {
+            return NextResponse.json(
+                { error: error.message },
+                { status: 400 }
+            );
+        }
+
         return NextResponse.json({
-            user: { id: "placeholder", email, name },
-            message: "Account created successfully",
+            user: {
+                id: data.user?.id,
+                email: data.user?.email,
+                name: name || "",
+            },
+            message: "Account created successfully. Please check your email to verify your account.",
         });
     } catch {
         return NextResponse.json(

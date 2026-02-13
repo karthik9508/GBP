@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
     try {
@@ -11,10 +12,26 @@ export async function POST(request: Request) {
             );
         }
 
-        // TODO: Implement actual Supabase auth login
-        // For now, return a placeholder response
+        const supabase = await createClient();
+
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
+
+        if (error) {
+            return NextResponse.json(
+                { error: error.message },
+                { status: 401 }
+            );
+        }
+
         return NextResponse.json({
-            user: { id: "placeholder", email },
+            user: {
+                id: data.user.id,
+                email: data.user.email,
+                name: data.user.user_metadata?.name || "",
+            },
             message: "Login successful",
         });
     } catch {

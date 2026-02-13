@@ -1,10 +1,11 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { Database } from "./types";
 
-export function createClient() {
-    const cookieStore = cookies();
+export async function createClient() {
+    const cookieStore = await cookies();
 
-    return createServerClient(
+    return createServerClient<Database>(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         {
@@ -17,7 +18,6 @@ export function createClient() {
                         cookieStore.set({ name, value, ...options });
                     } catch {
                         // The `set` method was called from a Server Component.
-                        // This can be ignored if you have middleware refreshing user sessions.
                     }
                 },
                 remove(name: string, options: CookieOptions) {
@@ -27,6 +27,25 @@ export function createClient() {
                         // Same as above
                     }
                 },
+            },
+        }
+    );
+}
+
+/**
+ * Creates a Supabase client with the service role key.
+ * Use this for admin operations that bypass RLS (e.g., webhooks, cron jobs).
+ * WARNING: Never expose this client to the browser.
+ */
+export function createServiceClient() {
+    return createServerClient<Database>(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        {
+            cookies: {
+                get() { return undefined; },
+                set() { },
+                remove() { },
             },
         }
     );
