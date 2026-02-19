@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { PricingModal } from "./PricingModal";
 import type { AuditResult } from "@/types";
 
 interface PlaceResult {
@@ -31,6 +32,7 @@ export function AuditForm({
     const [loading, setLoading] = useState(false);
     const [searching, setSearching] = useState(false);
     const [error, setError] = useState("");
+    const [isPremium, setIsPremium] = useState(false);
 
     // Search results & selection
     const [searchResults, setSearchResults] = useState<PlaceResult[]>([]);
@@ -90,6 +92,7 @@ export function AuditForm({
                     email,
                     placeId: selectedPlace?.place_id || null,
                     address: selectedPlace?.address || null,
+                    premium: isPremium,
                     placeDetails: selectedPlace ? {
                         name: selectedPlace.name,
                         address: selectedPlace.address,
@@ -106,7 +109,18 @@ export function AuditForm({
             });
 
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Audit failed");
+
+            if (!res.ok) {
+                // Handle subscription gate errors
+                if (data.requireLogin) {
+                    setError("Please log in to use Premium Audit features.");
+                } else if (data.requireUpgrade) {
+                    setError("UPGRADE_NEEDED");
+                } else {
+                    throw new Error(data.error || "Audit failed");
+                }
+                return;
+            }
 
             onResult(data);
         } catch (err: unknown) {
@@ -115,6 +129,16 @@ export function AuditForm({
             setLoading(false);
         }
     };
+
+    const [showPricing, setShowPricing] = useState(false);
+
+    const handlePaymentSuccess = () => {
+        // Payment successful — auto-run premium audit
+        setError("");
+        setShowPricing(false);
+        handleSubmit(new Event("submit") as unknown as React.FormEvent);
+    };
+
 
     return (
         <Card className="max-w-lg mx-auto">
@@ -226,11 +250,57 @@ export function AuditForm({
                         />
                     </div>
 
-                    {error && (
+                    {/* Premium Audit Toggle */}
+                    <div
+                        onClick={() => setIsPremium(!isPremium)}
+                        className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${isPremium
+                            ? "border-primary bg-primary/5"
+                            : "border-muted hover:border-primary/30"
+                            }`}
+                    >
+                        <div className={`w-10 h-5 rounded-full relative transition-colors ${isPremium ? "bg-primary" : "bg-muted-foreground/30"
+                            }`}>
+                            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${isPremium ? "left-[22px]" : "left-0.5"
+                                }`} />
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-sm font-medium flex items-center gap-1">
+                                ⭐ Premium Audit
+                                <span className="text-[10px] bg-primary/10 text-primary rounded-full px-1.5 py-0.5">
+                                    PRO
+                                </span>
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                                47-point checklist, competitor analysis, keywords, sentiment & fix guide
+                            </p>
+                        </div>
+                    </div>
+
+                    {error && error === "UPGRADE_NEEDED" ? (
+                        <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
+                            <div className="flex items-start gap-2">
+                                <span className="text-lg">⭐</span>
+                                <div>
+                                    <p className="text-sm font-medium">Pro subscription required</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                        Choose a plan to unlock 47-point checklist, competitor analysis, keywords, sentiment & fix guide.
+                                    </p>
+                                </div>
+                            </div>
+                            <Button
+                                type="button"
+                                variant="gradient"
+                                className="w-full"
+                                onClick={() => setShowPricing(true)}
+                            >
+                                ⭐ Upgrade to Pro — Starting ₹399/month
+                            </Button>
+                        </div>
+                    ) : error ? (
                         <p className="text-sm text-destructive bg-destructive/10 rounded-md p-2">
                             {error}
                         </p>
-                    )}
+                    ) : null}
 
                     <Button
                         type="submit"
@@ -238,7 +308,7 @@ export function AuditForm({
                         className="w-full"
                         disabled={loading || (!selectedPlace && !fallbackMode && businessName.trim().length < 2)}
                     >
-                        {loading ? <LoadingSpinner size="sm" /> : "Run Free Audit →"}
+                        {loading ? <LoadingSpinner size="sm" /> : isPremium ? "Run Premium Audit ⭐" : "Run Free Audit →"}
                     </Button>
 
                     {!selectedPlace && !fallbackMode && businessName.trim().length >= 2 && !showResults && (
@@ -248,6 +318,13 @@ export function AuditForm({
                     )}
                 </form>
             </CardContent>
+
+            {/* Pricing Modal */}
+            <PricingModal
+                isOpen={showPricing}
+                onClose={() => setShowPricing(false)}
+                onSuccess={handlePaymentSuccess}
+            />
         </Card>
     );
 }

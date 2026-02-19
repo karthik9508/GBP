@@ -2,10 +2,9 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import Razorpay from "razorpay";
 
-const PLAN_PRICES: Record<string, number> = {
-    starter: 29900,  // ₹299 in paise
-    pro: 59900,      // ₹599 in paise
-    lifetime: 999900, // ₹9,999 in paise
+const PLAN_PRICES: Record<string, { amount: number; label: string; duration: number }> = {
+    monthly: { amount: 39900, label: "Pro Monthly", duration: 30 },     // ₹399
+    annual: { amount: 199900, label: "Pro Annual", duration: 365 },    // ₹1,999
 };
 
 export async function POST(request: Request) {
@@ -21,7 +20,7 @@ export async function POST(request: Request) {
 
         if (!planType || !PLAN_PRICES[planType]) {
             return NextResponse.json(
-                { error: "Invalid plan type. Choose: starter, pro, or lifetime" },
+                { error: "Invalid plan type. Choose: monthly or annual" },
                 { status: 400 }
             );
         }
@@ -31,15 +30,17 @@ export async function POST(request: Request) {
             key_secret: process.env.RAZORPAY_KEY_SECRET!,
         });
 
-        const amount = PLAN_PRICES[planType];
+        const plan = PLAN_PRICES[planType];
 
         const order = await razorpay.orders.create({
-            amount,
+            amount: plan.amount,
             currency: "INR",
             receipt: `gbp_${planType}_${Date.now()}`,
             notes: {
                 user_id: user.id,
                 plan_type: planType,
+                plan_label: plan.label,
+                duration_days: String(plan.duration),
                 user_email: user.email || "",
             },
         });
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
         await supabase.from("payments").insert({
             user_id: user.id,
             razorpay_order_id: order.id,
-            amount,
+            amount: plan.amount,
             currency: "INR",
             status: "created",
             plan_type: planType,

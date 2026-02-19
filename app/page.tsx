@@ -49,55 +49,42 @@ const plans = [
         period: "forever",
         description: "Perfect to start",
         features: ["1 free audit", "Profile score report", "Basic recommendations", "Email report"],
-        cta: "Get Started",
+        cta: "Get Started Free",
         highlighted: false,
     },
     {
-        name: "Starter",
-        price: "₹499",
+        name: "Pro Monthly",
+        price: "₹399",
         period: "/month",
         description: "For growing businesses",
         features: [
             "Everything in Free",
-            "10 scheduled posts/month",
-            "10 AI review responses",
-            "Calendar view",
-            "Email support",
+            "47-Point GBP Checklist",
+            "Competitor Analysis",
+            "AI Keyword Suggestions",
+            "Review Sentiment Analysis",
+            "Step-by-Step Fix Guide",
+            "Unlimited Premium Audits",
         ],
-        cta: "Start Free Trial",
+        cta: "Get Pro Monthly",
         highlighted: false,
     },
     {
-        name: "Pro",
-        price: "₹999",
-        period: "/month",
-        description: "Most popular",
+        name: "Pro Annual",
+        price: "₹1,999",
+        period: "/year",
+        description: "Best value — save 58%",
         features: [
-            "Everything in Starter",
-            "Unlimited posts",
-            "Unlimited AI responses",
-            "Up to 3 locations",
-            "Priority support",
-            "Post analytics",
+            "Everything in Pro Monthly",
+            "47-Point GBP Checklist",
+            "Competitor Analysis",
+            "AI Keyword Suggestions",
+            "Review Sentiment Analysis",
+            "Step-by-Step Fix Guide",
+            "Priority Support",
         ],
-        cta: "Start Free Trial",
+        cta: "Get Pro Annual",
         highlighted: true,
-    },
-    {
-        name: "Lifetime",
-        price: "₹4,999",
-        period: "one-time",
-        description: "First 50 customers only",
-        features: [
-            "Everything in Pro",
-            "Lifetime access",
-            "All future features",
-            "5 locations",
-            "1-on-1 onboarding",
-            "Early access to new features",
-        ],
-        cta: "Grab Lifetime Deal",
-        highlighted: false,
     },
 ];
 
@@ -229,17 +216,17 @@ export default function HomePage() {
                             Simple, <span className="gradient-text">affordable</span> pricing
                         </h2>
                         <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
-                            Starting at just ₹499/month. All Indian payment methods accepted.
+                            Start free, upgrade to Pro for ₹399/month or save 58% with the annual plan.
                         </p>
                     </div>
 
-                    <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
                         {plans.map((plan) => (
                             <Card
                                 key={plan.name}
                                 className={`relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${plan.highlighted
-                                        ? "border-primary shadow-lg shadow-primary/20 scale-[1.02]"
-                                        : ""
+                                    ? "border-primary shadow-lg shadow-primary/20 scale-[1.02]"
+                                    : ""
                                     }`}
                             >
                                 {plan.highlighted && (
@@ -247,7 +234,7 @@ export default function HomePage() {
                                 )}
                                 <CardHeader>
                                     {plan.highlighted && (
-                                        <Badge className="w-fit mb-2 gradient-primary border-0">Most Popular</Badge>
+                                        <Badge className="w-fit mb-2 gradient-primary border-0">Best Value</Badge>
                                     )}
                                     <CardTitle className="text-lg">{plan.name}</CardTitle>
                                     <p className="text-sm text-muted-foreground">{plan.description}</p>

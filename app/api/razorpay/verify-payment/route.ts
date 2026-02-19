@@ -55,14 +55,15 @@ export async function POST(request: Request) {
         }
 
         // Upgrade user subscription
-        const subscriptionEnd = payment.plan_type === "lifetime"
-            ? null
-            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
+        const durationDays = payment.plan_type === "annual" ? 365 : 30;
+        const subscriptionEnd = new Date(
+            Date.now() + durationDays * 24 * 60 * 60 * 1000
+        ).toISOString();
 
         await supabase
             .from("users")
             .update({
-                subscription_tier: payment.plan_type,
+                subscription_tier: "pro",
                 subscription_status: "active",
                 subscription_end_date: subscriptionEnd,
             })

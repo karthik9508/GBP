@@ -27,6 +27,90 @@ export interface AuditResult {
     engagement: number;
     issues: AuditIssue[];
     recommendations: string[];
+    // Business detail fields (populated when Google Places data is available)
+    businessName?: string;
+    address?: string | null;
+    rating?: number | null;
+    reviewCount?: number;
+    photoCount?: number;
+    hasWebsite?: boolean;
+    hasPhone?: boolean;
+    hasHours?: boolean;
+    // Premium flag
+    isPremium?: boolean;
+}
+
+// ==========================================
+// Premium Audit Types
+// ==========================================
+
+export interface PremiumAuditResult extends AuditResult {
+    isPremium: true;
+    checklist: {
+        items: PremiumChecklistItem[];
+        passedCount: number;
+        totalCount: number;
+        categoryScores: Record<string, { passed: number; total: number }>;
+    };
+    competitors: {
+        competitors: CompetitorInfo[];
+        comparison: {
+            yourRating: number;
+            avgRating: number;
+            yourReviews: number;
+            avgReviews: number;
+            yourPhotos: number;
+            avgPhotos: number;
+            ratingRank: number;
+            reviewRank: number;
+            photoRank: number;
+        };
+        insights: string[];
+    };
+    keywordSuggestions: {
+        primaryKeywords: string[];
+        longTailKeywords: string[];
+        localKeywords: string[];
+        descriptionSuggestion: string;
+        postKeywords: string[];
+    };
+    reviewSentiment: {
+        overallSentiment: "positive" | "mixed" | "negative";
+        sentimentScore: number;
+        positiveThemes: string[];
+        negativeThemes: string[];
+        commonPraises: string[];
+        commonComplaints: string[];
+        suggestedResponses: { theme: string; response: string }[];
+        summary: string;
+    };
+    fixGuide: {
+        id: string;
+        label: string;
+        category: string;
+        fixGuide: string;
+        estimatedTime: string;
+        impact: "critical" | "important" | "nice-to-have";
+    }[];
+}
+
+export interface PremiumChecklistItem {
+    id: string;
+    category: string;
+    label: string;
+    passed: boolean;
+    weight: "critical" | "important" | "nice-to-have";
+    fixGuide: string;
+    estimatedTime: string;
+}
+
+export interface CompetitorInfo {
+    name: string;
+    address: string;
+    rating: number | null;
+    reviewCount: number;
+    photoCount: number;
+    placeId: string;
 }
 
 export interface PricingPlan {
@@ -59,3 +143,4 @@ export interface RazorpayPaymentVerification {
     razorpay_payment_id: string;
     razorpay_signature: string;
 }
+

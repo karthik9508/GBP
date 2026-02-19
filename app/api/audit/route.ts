@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { calculateAuditScore, generateRecommendations, generateMockAuditResult } from "@/lib/audit/scoring";
+import { runPremiumChecklist, generateFixGuide } from "@/lib/audit/premium-checklist";
+import { analyzeCompetitors } from "@/lib/audit/competitor-analysis";
+import { suggestKeywords } from "@/lib/audit/keyword-suggestions";
+import { analyzeReviewSentiment } from "@/lib/audit/review-sentiment";
 import type { Json } from "@/lib/supabase/types";
 
 export async function POST(request: Request) {
     try {
-        const { businessName, email, placeId, address, placeDetails } = await request.json();
+        const { businessName, email, placeId, address, placeDetails, premium } = await request.json();
 
         if (!businessName || businessName.trim().length < 2) {
             return NextResponse.json(
@@ -14,10 +18,42 @@ export async function POST(request: Request) {
             );
         }
 
+        // Check subscription for premium audit
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (premium) {
+            if (!user) {
+                return NextResponse.json(
+                    { error: "Login required for premium audit", requireLogin: true },
+                    { status: 401 }
+                );
+            }
+
+            // Use service role to bypass RLS for subscription check
+            const serviceClient = createServiceClient();
+            const { data: userData } = await serviceClient
+                .from("users")
+                .select("subscription_tier, subscription_status")
+                .eq("id", user.id)
+                .single();
+
+            const isPro = userData &&
+                ["pro", "lifetime"].includes(userData.subscription_tier || "") &&
+                userData.subscription_status === "active";
+
+            if (!isPro) {
+                return NextResponse.json(
+                    { error: "Premium audit requires Pro subscription", requireUpgrade: true },
+                    { status: 403 }
+                );
+            }
+        }
+
         let result;
 
         if (placeId && placeDetails) {
-            // ✅ Use REAL data from Google Places API
+            // Use REAL data from Google Places API
             const auditScoring = calculateAuditScore({
                 businessName: placeDetails.name || businessName.trim(),
                 hasAddress: !!placeDetails.address,
@@ -30,7 +66,6 @@ export async function POST(request: Request) {
                 hasBusinessHours: !!placeDetails.has_hours,
                 totalReviews: placeDetails.review_count || 0,
                 averageRating: placeDetails.rating || 0,
-                // Response rate not available from Places API, estimate based on review count
                 responseRate: (placeDetails.review_count || 0) > 10 ? 50 : 20,
             });
 
@@ -47,16 +82,63 @@ export async function POST(request: Request) {
                 hasWebsite: !!placeDetails.website,
                 hasPhone: !!placeDetails.phone,
                 hasHours: !!placeDetails.has_hours,
+                isPremium: !!premium,
             };
+
+            // ===== PREMIUM FEATURES =====
+            if (premium) {
+                // 1. 47-point Checklist
+                const checklistResult = runPremiumChecklist(placeDetails);
+
+                // 2. Fix Guide from failed items
+                const fixGuide = generateFixGuide(checklistResult.checklist);
+
+                // 3. Competitor Analysis (run in parallel with AI calls)
+                const [competitors, keywords, sentiment] = await Promise.all([
+                    analyzeCompetitors(
+                        placeId,
+                        placeDetails.name || businessName.trim(),
+                        placeDetails.types || [],
+                        placeDetails.address || address || "",
+                        placeDetails.rating || 0,
+                        placeDetails.review_count || 0,
+                        placeDetails.photo_count || 0
+                    ),
+                    suggestKeywords(
+                        placeDetails.name || businessName.trim(),
+                        placeDetails.types?.[0] || "business",
+                        placeDetails.description || null,
+                        placeDetails.address || address || ""
+                    ),
+                    analyzeReviewSentiment(
+                        placeDetails.name || businessName.trim(),
+                        placeDetails.types?.[0] || "business",
+                        placeDetails.rating || 0,
+                        placeDetails.review_count || 0,
+                        placeDetails.address || address || ""
+                    ),
+                ]);
+
+                result = {
+                    ...result,
+                    checklist: {
+                        items: checklistResult.checklist,
+                        passedCount: checklistResult.passedCount,
+                        totalCount: checklistResult.totalCount,
+                        categoryScores: checklistResult.categoryScores,
+                    },
+                    competitors,
+                    keywordSuggestions: keywords,
+                    reviewSentiment: sentiment,
+                    fixGuide,
+                };
+            }
         } else {
             // Fallback to mock when Places API is not available
             result = generateMockAuditResult(businessName.trim());
         }
 
-        // Save audit to database (works for both logged-in and anonymous users)
-        const supabase = await createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-
+        // Save audit to database
         await supabase.from("audits").insert({
             user_id: user?.id || null,
             business_name: businessName.trim(),
@@ -70,7 +152,6 @@ export async function POST(request: Request) {
         });
 
         if (email) {
-            // TODO: Send email report via Resend
             console.log(`Audit report will be sent to: ${email}`);
         }
 
