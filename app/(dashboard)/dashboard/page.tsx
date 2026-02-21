@@ -307,23 +307,6 @@ export default function DashboardPage() {
                     </Card>
                 </Link>
 
-                <Link href="/dashboard/scheduler">
-                    <Card className="hover:shadow-lg transition-shadow cursor-pointer group h-full">
-                        <CardContent className="p-6">
-                            <div className="flex items-center gap-4">
-                                <div className="h-12 w-12 rounded-lg gradient-primary flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
-                                    📅
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold">Schedule a Post</h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Create and schedule your next GBP post
-                                    </p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </Link>
 
                 <Link href="/dashboard/reviews">
                     <Card className="hover:shadow-lg transition-shadow cursor-pointer group h-full">

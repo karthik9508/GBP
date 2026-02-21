@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 const mobileNavItems = [
     { href: "/dashboard", label: "Dashboard", icon: "📊" },
     { href: "/dashboard/audit", label: "Audit", icon: "🔍" },
-    { href: "/dashboard/scheduler", label: "Scheduler", icon: "📅" },
+    { href: "/dashboard/reports", label: "Reports", icon: "📋" },
     { href: "/dashboard/reviews", label: "Reviews", icon: "⭐" },
     { href: "/dashboard/settings", label: "Settings", icon: "⚙️" },
 ];

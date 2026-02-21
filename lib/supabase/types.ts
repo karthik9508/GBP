@@ -410,6 +410,56 @@ export type Database = {
                     },
                 ];
             };
+            scheduled_posts: {
+                Row: {
+                    id: string;
+                    user_id: string;
+                    type: string;
+                    content: string;
+                    image_url: string | null;
+                    business_name: string | null;
+                    scheduled_at: string;
+                    status: string;
+                    published_at: string | null;
+                    created_at: string;
+                    updated_at: string;
+                };
+                Insert: {
+                    id?: string;
+                    user_id: string;
+                    type?: string;
+                    content: string;
+                    image_url?: string | null;
+                    business_name?: string | null;
+                    scheduled_at: string;
+                    status?: string;
+                    published_at?: string | null;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+                Update: {
+                    id?: string;
+                    user_id?: string;
+                    type?: string;
+                    content?: string;
+                    image_url?: string | null;
+                    business_name?: string | null;
+                    scheduled_at?: string;
+                    status?: string;
+                    published_at?: string | null;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: "scheduled_posts_user_id_fkey";
+                        columns: ["user_id"];
+                        isOneToOne: false;
+                        referencedRelation: "users";
+                        referencedColumns: ["id"];
+                    },
+                ];
+            };
         };
         Views: {
             [_ in never]: never;

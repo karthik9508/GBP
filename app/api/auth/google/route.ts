@@ -15,7 +15,6 @@ export async function GET() {
         "openid",
         "email",
         "profile",
-        "https://www.googleapis.com/auth/business.manage",
     ].join(" ");
 
     const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");

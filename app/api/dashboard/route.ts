@@ -64,7 +64,7 @@ export async function GET() {
                 name: profile?.name || user.user_metadata?.full_name || "",
                 email: profile?.email || user.email || "",
             },
-            recentAudits: audits.map((a) => ({
+            recentAudits: audits.map((a: { id: string; business_name: string; overall_score: number; profile_complete: number; content_activity: number; engagement: number; issues: unknown; created_at: string }) => ({
                 id: a.id,
                 businessName: a.business_name,
                 score: a.overall_score,

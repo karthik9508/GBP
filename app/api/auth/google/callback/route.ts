@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
@@ -8,13 +8,13 @@ export async function GET(request: Request) {
 
     if (error) {
         return NextResponse.redirect(
-            new URL("/login?error=google_auth_failed", process.env.NEXT_PUBLIC_APP_URL!)
+            new URL("/dashboard/settings?error=google_auth_failed", process.env.NEXT_PUBLIC_APP_URL!)
         );
     }
 
     if (!code) {
         return NextResponse.redirect(
-            new URL("/login?error=no_code", process.env.NEXT_PUBLIC_APP_URL!)
+            new URL("/dashboard/settings?error=no_code", process.env.NEXT_PUBLIC_APP_URL!)
         );
     }
 
@@ -37,9 +37,21 @@ export async function GET(request: Request) {
         if (!tokenResponse.ok) {
             console.error("Google token exchange failed:", tokens);
             return NextResponse.redirect(
-                new URL("/login?error=token_exchange_failed", process.env.NEXT_PUBLIC_APP_URL!)
+                new URL("/dashboard/settings?error=token_exchange_failed", process.env.NEXT_PUBLIC_APP_URL!)
             );
         }
+
+        // Get current authenticated user
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+            return NextResponse.redirect(
+                new URL("/login?error=not_authenticated", process.env.NEXT_PUBLIC_APP_URL!)
+            );
+        }
+
+        const service = createServiceClient();
 
         // Get user info from Google
         const userInfoResponse = await fetch(
@@ -48,87 +60,47 @@ export async function GET(request: Request) {
         );
         const userInfo = await userInfoResponse.json();
 
-        // Use service client to bypass RLS for user upsert
-        const supabase = createServiceClient();
-
-        // Check if user exists by google_id
-        const { data: existingUser } = await supabase
+        // Update user profile with Google info
+        await service
             .from("users")
+            .update({
+                name: userInfo.name || undefined,
+                avatar_url: userInfo.picture || undefined,
+                google_id: userInfo.id,
+            })
+            .eq("id", user.id);
+
+        // Store tokens for future GBP API access (when business.manage scope is available)
+        // For now, just save the Google account connection
+        const { data: existingBiz } = await service
+            .from("businesses")
             .select("id")
-            .eq("google_id", userInfo.id)
-            .single();
+            .eq("user_id", user.id)
+            .limit(1);
 
-        if (existingUser) {
-            // Update existing user's tokens
-            await supabase
-                .from("users")
+        if (existingBiz && existingBiz.length > 0) {
+            await service
+                .from("businesses")
                 .update({
-                    name: userInfo.name,
-                    avatar_url: userInfo.picture,
+                    access_token: tokens.access_token,
+                    refresh_token: tokens.refresh_token || null,
+                    token_expires_at: tokens.expires_in
+                        ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
+                        : null,
                 })
-                .eq("id", existingUser.id);
-
-            // Store GBP tokens on the business if we have business.manage scope
-            if (tokens.access_token) {
-                await supabase
-                    .from("businesses")
-                    .update({
-                        access_token: tokens.access_token,
-                        refresh_token: tokens.refresh_token || null,
-                        token_expires_at: tokens.expires_in
-                            ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()
-                            : null,
-                    })
-                    .eq("user_id", existingUser.id);
-            }
-        } else {
-            // Create new user
-            await supabase.from("users").insert({
-                email: userInfo.email,
-                name: userInfo.name,
-                google_id: userInfo.id,
-                avatar_url: userInfo.picture,
-            });
+                .eq("id", existingBiz[0].id);
         }
+        // Note: We don't create a business entry here without business.manage scope
+        // because we can't fetch the user's GBP location ID
 
-        // Sign the user into Supabase Auth
-        // We use signInWithPassword with a deterministic password derived from Google ID
-        // Or better: sign in via Supabase's built-in Google OAuth
-        // For custom Google OAuth (with GBP scopes), we create a session manually
-        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-            email: userInfo.email,
-            email_confirm: true,
-            user_metadata: {
-                name: userInfo.name,
-                avatar_url: userInfo.picture,
-                google_id: userInfo.id,
-            },
-        });
-
-        if (authError && authError.message !== "A user with this email address has already been registered") {
-            console.error("Supabase auth user creation error:", authError);
-        }
-
-        // Generate a magic link to sign the user in
-        const { error: signInError } = await supabase.auth.admin.generateLink({
-            type: "magiclink",
-            email: userInfo.email,
-        });
-
-        if (signInError) {
-            console.error("Magic link generation error:", signInError);
-        }
-
-        // Redirect to dashboard - the middleware will handle session
-        const response = NextResponse.redirect(
-            new URL("/dashboard", process.env.NEXT_PUBLIC_APP_URL!)
+        // Redirect to settings with success
+        return NextResponse.redirect(
+            new URL("/dashboard/settings?gbp=connected", process.env.NEXT_PUBLIC_APP_URL!)
         );
-
-        return response;
     } catch (err) {
         console.error("Google OAuth callback error:", err);
         return NextResponse.redirect(
-            new URL("/login?error=callback_failed", process.env.NEXT_PUBLIC_APP_URL!)
+            new URL("/dashboard/settings?error=callback_failed", process.env.NEXT_PUBLIC_APP_URL!)
         );
     }
 }
